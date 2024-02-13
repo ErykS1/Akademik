@@ -6,6 +6,7 @@ CREATE TYPE Pokoj AS OBJECT (
     czy_czysty BOOLEAN,
     numer_pietra_ref REF Pietro
 );
+-- do stworzenia
 
 -- Tworzenie tabeli Pokój z kolumn¹ typu obiektowego
 CREATE TABLE TabelaPokoje OF Pokoj (
