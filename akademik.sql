@@ -1,5 +1,5 @@
 -- Tworzenie typu obiektowego dla tabeli Pokój
-CREATE TYPE Pokoj AS OBJECT (
+CREATE TYPE TypPokoj AS OBJECT (
     numer_pokoju NUMBER,
     liczba_miejsc NUMBER,
     cena_pokoju NUMBER,
@@ -8,29 +8,29 @@ CREATE TYPE Pokoj AS OBJECT (
 );
 
 -- Tworzenie tabeli Pokój z kolumn¹ typu obiektowego
-CREATE TABLE TabelaPokoje OF Pokoj (
+CREATE TABLE TabelaPokoje OF TypPokoj (
     numer_pokoju PRIMARY KEY
 );
 
 -- Tworzenie typu obiektowego dla tabeli Piêtro
-CREATE TYPE Pietro AS OBJECT (
+CREATE TYPE TypPietro AS OBJECT (
     numer_pietra NUMBER,
     liczba_pokoi NUMBER
 );
 
 -- Tworzenie tabeli Piêtro z kolumn¹ typu obiektowego
-CREATE TABLE TabelaPietra OF Pietro (
+CREATE TABLE TabelaPietra OF TypPietro (
     numer_pietra PRIMARY KEY
 );
 
 -- Tworzenie typu obiektowego dla tabeli Akademik
-CREATE TYPE Akademik AS OBJECT (
+CREATE TYPE TypAkademik AS OBJECT (
     nazwa_akademika VARCHAR2(50),
     lokalizacja VARCHAR2(100)
 );
 
 -- Tworzenie typu obiektowego dla tabeli Student
-CREATE TYPE Student AS OBJECT (
+CREATE TYPE TypStudent AS OBJECT (
     numer_indeksu NUMBER,
     imie VARCHAR2(50),
     nazwisko VARCHAR2(50),
@@ -41,7 +41,7 @@ CREATE TYPE Student AS OBJECT (
 );
 
 -- Tworzenie tabeli Student z kolumn¹ typu obiektowego
-CREATE TABLE TabelaStudenci OF Student (
+CREATE TABLE TabelaStudenci OF TypStudent (
     numer_indeksu PRIMARY KEY,
     FOREIGN KEY (numer_pokoju_ref) REFERENCES TabelaPokoje,
     FOREIGN KEY (numer_pietra_ref) REFERENCES TabelaPietra,
@@ -49,31 +49,108 @@ CREATE TABLE TabelaStudenci OF Student (
 );
 
 -- Tworzenie typu obiektowego dla tabeli Personel
-CREATE TYPE Personel AS OBJECT (
-    identyfikator_pracownika NUMBER,
+CREATE TYPE TypPersonel AS OBJECT (
+    ID_pracownika NUMBER,
     imie VARCHAR2(50),
     nazwisko VARCHAR2(50),
-    stanowisko VARCHAR2(50)
+    stanowisko VARCHAR2(50),
+    pensja NUMBER
 );
 
 -- Tworzenie tabeli Personel z kolumn¹ typu obiektowego
-CREATE TABLE TabelaPersonel OF Personel (
-    identyfikator_pracownika PRIMARY KEY
+CREATE TABLE TabelaPersonel OF TypPersonel (
+    ID_pracownika PRIMARY KEY
+);
+
+-- Definicja typu dla wyp³at pensji
+CREATE TYPE TypWyplaty AS OBJECT (
+    ID_wyp³aty NUMBER,
+    kwota NUMBER,
+    data_wyplaty DATE,
+    pracownik REF TypPersonel
+);
+
+-- Definicja tabeli dla wyp³at pensji
+CREATE TABLE TabelaWyplaty OF TypWyplaty (
+    ID_wyplaty PRIMARY KEY
 );
 
 -- Tworzenie typu obiektowego dla tabeli Wp³aty
-CREATE TYPE Wplaty AS OBJECT (
-    numer_transakcji NUMBER,
+CREATE TYPE TypWplaty AS OBJECT (
+    ID_wplaty NUMBER,
     kwota NUMBER,
-    data_transakcji DATE,
-    numer_indeksu_ref REF Student
+    data_platnosci DATE,
+    student REF TypStudent
 );
 
 -- Tworzenie tabeli Wp³aty z kolumn¹ typu obiektowego
-CREATE TABLE TabelaWplaty OF Wplaty (
-    numer_transakcji PRIMARY KEY,
-    FOREIGN KEY (numer_indeksu_ref) REFERENCES TabelaStudenci
+CREATE TABLE Wplaty OF TypWplaty (
+    ID_wplaty PRIMARY KEY
 );
+
+
+CREATE OR REPLACE PACKAGE PakietWplat AS
+    PROCEDURE dokonajWplaty(
+        numer_indeksu IN NUMBER,
+        kwota IN NUMBER
+    );
+END PakietWplat;
+/
+
+CREATE OR REPLACE PACKAGE BODY PakietWplat AS
+    PROCEDURE dokonajWplaty(
+        numer_indeksu IN NUMBER,
+        kwota IN NUMBER
+    ) AS
+        ref_studenta REF TypStudent;
+    BEGIN
+        -- Pobieranie referencji do studenta na podstawie numeru_indeksu
+        SELECT REF(s) INTO ref_studenta
+        FROM TabelaStudenci s
+        WHERE s.numer_indeksu = numer_indeksu;
+
+        -- Wstawianie nowej wp³aty
+        INSERT INTO Wplaty VALUES (
+            TypWplatySeq.nextval, kwota, SYSDATE, ref_studenta
+        );
+    END dokonajWplaty;
+END PakietWplat;
+
+
+-- Tworzenie pakietu z logik¹ biznesow¹
+CREATE OR REPLACE PACKAGE PakietObslugi AS
+    PROCEDURE DodajPracownika(
+        imie IN VARCHAR2,
+        nazwisko IN VARCHAR2,
+        stanowisko IN VARCHAR2,
+        pensja IN NUMBER
+    );
+    PROCEDURE DodajWyplate(
+        id_pracownika IN NUMBER,
+        kwota IN NUMBER
+    );
+END PakietObslugi;
+/
+
+CREATE OR REPLACE PACKAGE BODY PakietObslugi AS
+    PROCEDURE DodajPracownika(
+        imie IN VARCHAR2,
+        nazwisko IN VARCHAR2,
+        stanowisko IN VARCHAR2,
+        pensja IN NUMBER
+    ) AS
+    BEGIN
+        INSERT INTO TabelaPracownikow VALUES (TypPracownikaSeq.nextval, imie, nazwisko, stanowisko, pensja);
+    END DodajPracownika;
+
+    PROCEDURE DodajWyplate(
+        id_pracownika IN NUMBER,
+        kwota IN NUMBER
+    ) AS
+    BEGIN
+        INSERT INTO TabelaWyplat VALUES (TypWyplatySeq.nextval, kwota, SYSDATE, (SELECT REF(p) FROM TabelaPracownikow p WHERE p.ID_pracownika = id_pracownika));
+    END DodajWyplate;
+END PakietObslugi;
 
 
 
